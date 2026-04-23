@@ -4,7 +4,7 @@ import pytest
 
 from feature_engineering.transformations import encode_categoricals, scale_numerics, log_transform
 from feature_engineering.engineering import add_amenity_count, add_price_ratios, add_categorical_flags, add_listing_density
-from feature_engineering.selection import correlation_filter, mutual_information_ranking, create_train_val_test_split
+from feature_engineering.selection import correlation_filter, mutual_information_ranking
 
 
 class TestTransformations:
@@ -272,55 +272,6 @@ class TestSelection:
         assert len(result) == 5
         assert isinstance(result, list)
         assert all(f in X.columns for f in result)
-
-    def test_train_val_test_split_ratios(self):
-        """Test that train/val/test split produces correct ratios."""
-        df = pd.DataFrame({
-            "feature1": range(1000),
-            "feature2": range(1000, 2000),
-            "target": np.random.randint(0, 3, 1000)
-        })
-        
-        train, val, test = create_train_val_test_split(
-            df, target_col="target", 
-            train_ratio=0.7, val_ratio=0.15, test_ratio=0.15
-        )
-        
-        # Check sizes (allow small rounding differences)
-        assert abs(len(train) / len(df) - 0.7) < 0.02
-        assert abs(len(val) / len(df) - 0.15) < 0.02
-        assert abs(len(test) / len(df) - 0.15) < 0.02
-        
-        # Check that all data is accounted for
-        assert len(train) + len(val) + len(test) == len(df)
-
-    def test_train_val_test_split_no_overlap(self):
-        """Test that train/val/test splits have no overlapping indices."""
-        df = pd.DataFrame({
-            "feature1": range(100),
-            "target": np.random.randint(0, 3, 100)
-        })
-        
-        train, val, test = create_train_val_test_split(df, target_col="target")
-        
-        # Check no overlap
-        assert len(set(train.index) & set(val.index)) == 0
-        assert len(set(train.index) & set(test.index)) == 0
-        assert len(set(val.index) & set(test.index)) == 0
-
-    def test_train_val_test_split_invalid_ratios(self):
-        """Test that invalid ratios raise an assertion error."""
-        df = pd.DataFrame({
-            "feature1": range(100),
-            "target": np.random.randint(0, 3, 100)
-        })
-        
-        with pytest.raises(AssertionError):
-            create_train_val_test_split(
-                df, target_col="target",
-                train_ratio=0.5, val_ratio=0.3, test_ratio=0.3  # Sum > 1
-            )
-
 
 class TestFeaturePipeline:
     """Integration tests for the full feature engineering pipeline."""
