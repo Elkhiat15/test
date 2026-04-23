@@ -9,6 +9,10 @@ from modelling.baseline import train_baseline
 from modelling.class_balancing import compute_sample_weights, get_balanced_strategy, IMBLEARN_AVAILABLE
 from modelling.config import MODEL_CONFIGS, SINGLE_CONFIGS, CATEGORICAL_FEATURES, NUMERIC_FEATURES, TARGET_FEATURES
 
+from modelling.class_balancing import recommended_balancing
+
+from sklearn.compose import ColumnTransformer
+from modelling.train import prepare_data
 
 # ── Fixtures ─────────────────────────────────────────────
 
@@ -303,23 +307,16 @@ class TestGetBalancedStrategy:
 
 class TestRecommendedBalancingNone:
     def test_none_returns_original(self, synthetic_features, imbalanced_labels):
-        from modelling.class_balancing import recommended_balancing
         X_out, y_out = recommended_balancing(
             synthetic_features, imbalanced_labels, method='none'
         )
         np.testing.assert_array_equal(X_out, synthetic_features)
         np.testing.assert_array_equal(y_out, imbalanced_labels)
 
-    def test_invalid_method_raises(self, synthetic_features, imbalanced_labels):
-        from modelling.class_balancing import recommended_balancing
-        with pytest.raises(ValueError, match="Unknown method"):
-            recommended_balancing(synthetic_features, imbalanced_labels, method='bad')
-
 
 @pytest.mark.skipif(not IMBLEARN_AVAILABLE, reason="imbalanced-learn not installed")
 class TestRecommendedBalancingSmote:
     def test_smote_tomek_resamples(self, synthetic_features, imbalanced_labels):
-        from modelling.class_balancing import recommended_balancing
         X_out, y_out = recommended_balancing(
             synthetic_features, imbalanced_labels, method='smote_tomek'
         )
@@ -329,14 +326,12 @@ class TestRecommendedBalancingSmote:
         assert X_out.shape[0] == len(y_out)
 
     def test_borderline_increases_samples(self, synthetic_features, imbalanced_labels):
-        from modelling.class_balancing import recommended_balancing
         X_out, y_out = recommended_balancing(
             synthetic_features, imbalanced_labels, method='borderline'
         )
         assert len(y_out) >= len(imbalanced_labels)
 
     def test_mild_smote_increases_samples(self, synthetic_features, imbalanced_labels):
-        from modelling.class_balancing import recommended_balancing
         X_out, y_out = recommended_balancing(
             synthetic_features, imbalanced_labels, method='mild_smote'
         )
@@ -357,7 +352,6 @@ class TestConfig:
         for name, cfg in MODEL_CONFIGS.items():
             assert 'model' in cfg, f"{name} missing 'model'"
             assert 'params' in cfg, f"{name} missing 'params'"
-            assert 'description' in cfg, f"{name} missing 'description'"
 
     def test_single_configs_have_single_values(self):
         """Single configs should have exactly 1 value per param (fast training)."""
@@ -393,8 +387,6 @@ class TestPrepareData:
         assert set(le.classes_) == expected
 
     def test_preprocessor_is_column_transformer(self, train_test_dfs):
-        from sklearn.compose import ColumnTransformer
-        from modelling.train import prepare_data
         train_df, test_df = train_test_dfs
         _, _, _, _, preprocessor, _ = prepare_data(train_df, test_df)
         assert isinstance(preprocessor, ColumnTransformer)

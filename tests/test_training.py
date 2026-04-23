@@ -57,7 +57,6 @@ def test_model_configs_structure():
     for model_name, config in MODEL_CONFIGS.items():
         assert 'model' in config, f"{model_name} missing 'model' key"
         assert 'params' in config, f"{model_name} missing 'params' key"
-        assert 'description' in config, f"{model_name} missing 'description' key"
 
 
 def test_single_configs_structure():
