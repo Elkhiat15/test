@@ -1,31 +1,3 @@
-"""
-Model Training
-──────────────
-Train ≥ 5 classification models and log each run to MLflow.
-
-Models:
-  1. Baseline (DummyClassifier)
-  2. Logistic Regression
-  3. Random Forest
-  4. XGBoost (TOP PRIORITY from EDA)
-  5. KNN (K-Nearest Neighbors)
-  6. Gradient Boosting
-  7. HistGradientBoosting
-  8. CatBoost (if installed)
-
-Each MLflow run logs:
-  - Model name & hyperparameters
-  - ≥ 2 standard metrics (accuracy, F1, etc.)
-  - ≥ 2 business metrics (over_promise_rate, high_quality_recall, etc.)
-  - Trained model artifact
-  - Confusion matrix
-
-Based on EDA findings:
-- Use ready_features.csv (17 features, 3 target classes)
-- Weak linear correlations → tree models will outperform
-- Class imbalance → use balanced class weights
-"""
-
 import argparse
 import logging
 from pathlib import Path
@@ -41,18 +13,16 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
-# Suppress OneHotEncoder warnings about unknown categories during CV
-# These are expected when rare categories appear in validation but not training folds
-# The encoder handles this correctly by encoding unknowns as all zeros
+
 warnings.filterwarnings('ignore', message='Found unknown categories')
-# Suppress MLflow model serialization warnings (pickle format is standard for sklearn)
 warnings.filterwarnings('ignore', category=UserWarning, module='mlflow')
 
 from modelling.config import (
     MODEL_CONFIGS, 
     CATEGORICAL_FEATURES,
     NUMERIC_FEATURES,
-    TARGET_FEATURES
+    TARGET_FEATURES, 
+    TRAKING_URI
 )
 from modelling.evaluate import (
     standard_metrics,
@@ -66,16 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 def load_splits(data_dir: str = "data/processed/"):
-    """Load train / test CSVs from ready_features splits.
     
-    Note: No separate validation set - use k-fold CV on train for tuning.
-    
-    Args:
-        data_dir: Directory containing train.csv, test.csv
-        
-    Returns:
-        Tuple of (train_df, test_df)
-    """
     logger.info(f"Loading data splits from {data_dir}")
     
     train_df = pd.read_csv(Path(data_dir) / "train.csv")
@@ -89,15 +50,8 @@ def load_splits(data_dir: str = "data/processed/"):
 
 
 def prepare_data(train_df, test_df):
-    """Prepare data for training: separate X/y and create preprocessing pipeline.
-    
-    Args:
-        train_df: Training DataFrame
-        test_df: Test DataFrame
-        
-    Returns:
-        Tuple of (X_train, X_test, y_train, y_test, preprocessor, label_encoder)
-    """
+    """Prepare data for training: separate X/y and create preprocessing pipeline."""
+
     logger.info("Preparing data for training...")
     
     # Separate features and target
@@ -145,23 +99,8 @@ def train_and_log(model_name: str, model, param_grid: dict,
                  X_train, y_train, X_test, y_test,
                  preprocessor, label_encoder, use_grid_search: bool = True,
                  cv_folds: int = 3, n_iter: int = 10):
-    """Train a model with hyperparameter tuning using k-fold CV and evaluate on test.
-    
-    Args:
-        model_name: Name for MLflow run
-        model: Scikit-learn compatible model
-        param_grid: Hyperparameter grid for search
-        X_train, y_train: Training data for CV (y_train is numeric encoded)
-        X_test, y_test: Test data for final evaluation (y_test is numeric encoded)
-        preprocessor: Preprocessing pipeline
-        label_encoder: LabelEncoder for target variable
-        use_grid_search: If True use GridSearchCV, else RandomizedSearchCV
-        cv_folds: Number of cross-validation folds (default 3)
-        n_iter: Number of iterations for RandomizedSearchCV
-        
-    Returns:
-        Trained pipeline with best parameters
-    """
+    """Train a model with hyperparameter tuning using k-fold CV and evaluate on test."""
+
     logger.info("\n" + "="*70)
     logger.info(f"TRAINING: {model_name}")
     logger.info("="*70)
@@ -282,7 +221,7 @@ def train_and_log(model_name: str, model, param_grid: dict,
         # Save trained model as MLflow artifact
         mlflow.sklearn.log_model(
             sk_model=best_pipeline,
-            artifact_path="model"
+            name="model"
         )
         logger.info(f"\n  Model saved as MLflow artifact: {model_name}")
         
@@ -301,24 +240,19 @@ def train_and_log(model_name: str, model, param_grid: dict,
 def train_all_models(data_dir: str = "data/processed/",
                     models_to_train: list = None,
                     cv_folds: int = 3):
-    """Train all models and log to MLflow.
-    
-    Args:
-        data_dir: Directory containing train/val/test splits
-        models_to_train: List of model names to train (None = all)
-        cv_folds: Number of cross-validation folds
-    """
+    """Train all models and log to MLflow."""
+
     logger.info("="*70)
     logger.info("AIRBNB RATING CLASSIFICATION - MODEL TRAINING")
     logger.info("="*70)
     
     # Set MLflow tracking URI to use MLflow server
-    mlflow.set_tracking_uri('http://127.0.0.1:5000')
+    mlflow.set_tracking_uri(TRAKING_URI)
     
     # Set MLflow experiment
     mlflow.set_experiment("airbnb-rating-classification")
     logger.info("MLflow experiment: airbnb-rating-classification")
-    logger.info("MLflow tracking URI: http://127.0.0.1:5000")
+    logger.info(f"MLflow tracking URI: {TRAKING_URI}")
     
     # Load data
     train_df, test_df = load_splits(data_dir)

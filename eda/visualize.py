@@ -1,28 +1,8 @@
-"""
-EDA Visualization Functions
-────────────────────────────
-Reusable plotting functions for exploratory data analysis.
-
-Used by:
-  - eda.ipynb (exploratory notebook)
-  - dashboard.py (interactive dashboard)
-
-Functions:
-  - plot_target_distribution: Continuous and binned target histograms
-  - plot_price_by_city: Box/violin plots across cities
-  - plot_correlation_heatmap: Pearson correlation matrix
-  - plot_feature_vs_target: Categorical feature vs target analysis
-  - plot_geospatial_scatter: Lat/long scatter colored by rating/price
-  - plot_numeric_distributions: Histograms for all numeric features
-  - plot_price_by_room_type: Price distribution by room type
-  - plot_reviews_vs_rating: Scatter of reviews vs rating
-  - plot_amenity_analysis: Amenity count distribution and analysis
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.colors as mcolors
 from typing import Optional, List, Tuple
 import warnings
 
@@ -31,7 +11,7 @@ warnings.filterwarnings('ignore')
 # Set style
 sns.set_style("whitegrid")
 plt.rcParams['figure.figsize'] = (12, 6)
-plt.rcParams['font.size'] = 10
+plt.rcParams['font.size'] = 8
 
 
 def plot_target_distribution(df: pd.DataFrame, 
@@ -47,9 +27,10 @@ def plot_target_distribution(df: pd.DataFrame,
         axes[0].hist(df[target_col].dropna(), bins=50, edgecolor='black', alpha=0.7, color='skyblue')
         axes[0].axvline(df[target_col].mean(), color='red', linestyle='--', linewidth=2, label=f'Mean: {df[target_col].mean():.2f}')
         axes[0].axvline(df[target_col].median(), color='green', linestyle='--', linewidth=2, label=f'Median: {df[target_col].median():.2f}')
-        axes[0].set_xlabel('Review Score Rating')
-        axes[0].set_ylabel('Frequency')
-        axes[0].set_title('Distribution of Review Scores (Continuous)')
+        axes[0].set_xlabel('Review Score Rating', fontsize=9)
+        axes[0].set_ylabel('Frequency', fontsize=9)
+        axes[0].set_title('Distribution of Review Scores (Continuous)', fontsize=11)
+        axes[0].tick_params(axis='both', labelsize=8)
         axes[0].legend()
         axes[0].grid(alpha=0.3)
         
@@ -58,23 +39,25 @@ def plot_target_distribution(df: pd.DataFrame,
         bars = axes[1].bar(range(len(counts)), counts.values, edgecolor='black', alpha=0.7, color='coral')
         axes[1].set_xticks(range(len(counts)))
         axes[1].set_xticklabels(counts.index, rotation=45, ha='right')
-        axes[1].set_xlabel('Rating Category')
-        axes[1].set_ylabel('Count')
-        axes[1].set_title('Distribution of Rating Categories (Binned)')
+        axes[1].set_xlabel('Rating Category', fontsize=9)
+        axes[1].set_ylabel('Count', fontsize=9)
+        axes[1].set_title('Distribution of Rating Categories (Binned)', fontsize=11)
+        axes[1].tick_params(axis='both', labelsize=8)
         axes[1].grid(alpha=0.3, axis='y')
         
         # Add percentage labels on bars
         for i, (bar, count) in enumerate(zip(bars, counts.values)):
             pct = (count / len(df)) * 100
-            axes[1].text(i, count, f'{count:,}\n({pct:.1f}%)', ha='center', va='bottom', fontsize=9)
+            axes[1].text(i, count, f'{count:,}\n({pct:.1f}%)', ha='center', va='bottom', fontsize=7)
     else:
         fig, ax = plt.subplots(1, 1, figsize=(10, 5))
         ax.hist(df[target_col].dropna(), bins=50, edgecolor='black', alpha=0.7, color='skyblue')
         ax.axvline(df[target_col].mean(), color='red', linestyle='--', linewidth=2, label=f'Mean: {df[target_col].mean():.2f}')
         ax.axvline(df[target_col].median(), color='green', linestyle='--', linewidth=2, label=f'Median: {df[target_col].median():.2f}')
-        ax.set_xlabel('Review Score Rating')
-        ax.set_ylabel('Frequency')
-        ax.set_title('Distribution of Review Scores')
+        ax.set_xlabel('Review Score Rating', fontsize=9)
+        ax.set_ylabel('Frequency', fontsize=9)
+        ax.set_title('Distribution of Review Scores', fontsize=11)
+        ax.tick_params(axis='both', labelsize=8)
         ax.legend()
         ax.grid(alpha=0.3)
     
@@ -87,7 +70,7 @@ def plot_price_by_city(df: pd.DataFrame,
                        city_col: str = "city",
                        plot_type: str = "box",
                        figsize: Tuple[int, int] = (14, 6)) -> plt.Figure:
-    """Plot price distribution across cities using box or violin plots."""
+    """Plot price distribution across cities using box or violin plots"""
 
     fig, axes = plt.subplots(1, 2, figsize=figsize)
     
@@ -145,13 +128,17 @@ def plot_correlation_heatmap(df: pd.DataFrame,
     # Create mask for upper triangle
     mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
     
+    # Create figure
     fig, ax = plt.subplots(figsize=figsize)
     
+    # Plot heatmap
     sns.heatmap(corr_matrix, mask=mask, annot=annot, fmt='.2f', 
                 cmap='coolwarm', center=0, square=True, linewidths=0.5,
-                cbar_kws={"shrink": 0.8}, ax=ax, vmin=-1, vmax=1)
+                cbar_kws={"shrink": 0.8}, ax=ax, vmin=-1, vmax=1,
+                annot_kws={"size": 7})
     
-    ax.set_title(f'Feature Correlation Heatmap ({method.capitalize()})', fontsize=14, pad=20)
+    ax.set_title(f'Feature Correlation Heatmap ({method.capitalize()})', fontsize=11, pad=12)
+    ax.tick_params(axis='both', labelsize=8)
     
     # Highlight strong correlations
     if threshold < 1.0:
@@ -175,12 +162,22 @@ def plot_feature_vs_target(df: pd.DataFrame,
                            target_col: str = "review_scores_rating",
                            categorical_target: Optional[str] = "rating_category",
                            figsize: Tuple[int, int] = (14, 5)) -> plt.Figure:
-    """Plot relationship between a categorical feature and target variable."""
-
+    """Plot relationship between a categorical feature and target variable.
+    
+    Args:
+        df: Input DataFrame
+        feature_col: Name of categorical feature column
+        target_col: Name of continuous target column
+        categorical_target: Name of binned target (optional)
+        figsize: Figure size (width, height)
+        
+    Returns:
+        Matplotlib figure object
+    """
     if categorical_target and categorical_target in df.columns:
         fig, axes = plt.subplots(1, 2, figsize=figsize)
         
-        # Box plot for continuous target
+        # Plot 1: Box plot for continuous target
         sns.boxplot(data=df, x=feature_col, y=target_col, ax=axes[0], palette="Set3")
         axes[0].set_xlabel(feature_col.replace('_', ' ').title())
         axes[0].set_ylabel('Review Score Rating')
@@ -188,7 +185,7 @@ def plot_feature_vs_target(df: pd.DataFrame,
         axes[0].tick_params(axis='x', rotation=45)
         axes[0].grid(alpha=0.3, axis='y')
         
-        # Stacked bar chart for categorical target
+        # Plot 2: Stacked bar chart for categorical target
         cross_tab = pd.crosstab(df[feature_col], df[categorical_target], normalize='index') * 100
         cross_tab.plot(kind='bar', stacked=True, ax=axes[1], colormap='viridis', edgecolor='black')
         axes[1].set_xlabel(feature_col.replace('_', ' ').title())
@@ -235,7 +232,6 @@ def plot_geospatial_scatter(df: pd.DataFrame,
         color_col_to_plot = '_color_numeric'
         
         # Use discrete colormap for categorical data
-        import matplotlib.colors as mcolors
         n_categories = len(unique_categories)
         if n_categories <= 4:
             colors = ['red', 'orange', 'yellow', 'green'][:n_categories]
@@ -270,9 +266,10 @@ def plot_geospatial_scatter(df: pd.DataFrame,
                                    c=city_data[color_col_to_plot], cmap=cmap, 
                                    alpha=0.6, s=10, edgecolors='none',
                                    vmin=vmin, vmax=vmax)
-        axes[idx].set_xlabel('Longitude')
-        axes[idx].set_ylabel('Latitude')
-        axes[idx].set_title(f'{city} (n={len(city_data):,})')
+        axes[idx].set_xlabel('Longitude', fontsize=8)
+        axes[idx].set_ylabel('Latitude', fontsize=8)
+        axes[idx].set_title(f'{city} (n={len(city_data):,})', fontsize=9)
+        axes[idx].tick_params(axis='both', labelsize=7)
         axes[idx].grid(alpha=0.3)
         
         # Add colorbar or legend
@@ -280,16 +277,65 @@ def plot_geospatial_scatter(df: pd.DataFrame,
             # Create custom colorbar with category labels
             cbar = plt.colorbar(scatter, ax=axes[idx], ticks=range(n_categories))
             cbar.ax.set_yticklabels(unique_categories)
-            cbar.set_label(color_by.replace('_', ' ').title())
+            cbar.set_label(color_by.replace('_', ' ').title(), fontsize=8)
+            cbar.ax.tick_params(labelsize=7)
         else:
-            plt.colorbar(scatter, ax=axes[idx], label=color_by.replace('_', ' ').title())
+            cbar = plt.colorbar(scatter, ax=axes[idx], label=color_by.replace('_', ' ').title())
+            cbar.ax.tick_params(labelsize=7)
     
     # Hide unused subplots
     for idx in range(n_cities, len(axes)):
         axes[idx].axis('off')
     
     fig.suptitle(f'Geospatial Distribution Colored by {color_by.replace("_", " ").title()}', 
-                 fontsize=14, y=1.00)
+                 fontsize=11, y=1.00)
+    plt.tight_layout()
+    return fig
+
+
+def plot_missing_values(df: pd.DataFrame, figsize: Tuple[int, int] = (12, 8)) -> plt.Figure:
+    """Plot heatmap of missing values across the dataset."""
+
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    
+    # Calculate missing percentages
+    missing_pct = (df.isnull().sum() / len(df) * 100).sort_values(ascending=False)
+    missing_pct = missing_pct[missing_pct > 0]
+    
+    # Plot 1: Bar chart of missing percentages
+    if len(missing_pct) > 0:
+        axes[0].barh(range(len(missing_pct)), missing_pct.values, color='coral', edgecolor='black', alpha=0.7)
+        axes[0].set_yticks(range(len(missing_pct)))
+        axes[0].set_yticklabels(missing_pct.index)
+        axes[0].set_xlabel('Missing Values (%)')
+        axes[0].set_title('Missing Value Percentage by Column')
+        axes[0].grid(alpha=0.3, axis='x')
+        
+        # Add percentage labels
+        for i, v in enumerate(missing_pct.values):
+            axes[0].text(v + 0.5, i, f'{v:.1f}%', va='center')
+    else:
+        axes[0].text(0.5, 0.5, 'No Missing Values!', ha='center', va='center', 
+                    fontsize=16, transform=axes[0].transAxes)
+        axes[0].axis('off')
+    
+    # Plot 2: Heatmap of missing values (sample rows)
+    sample_size = min(1000, len(df))
+    df_sample = df.sample(sample_size, random_state=42)
+    
+    # Only show columns with missing values
+    cols_with_missing = df_sample.columns[df_sample.isnull().any()].tolist()
+    
+    if cols_with_missing:
+        sns.heatmap(df_sample[cols_with_missing].isnull(), cbar=False, 
+                   yticklabels=False, cmap='coolwarm', ax=axes[1])
+        axes[1].set_xlabel('Columns')
+        axes[1].set_title(f'Missing Value Pattern (Sample of {sample_size} rows)')
+    else:
+        axes[1].text(0.5, 0.5, 'No Missing Values!', ha='center', va='center',
+                    fontsize=16, transform=axes[1].transAxes)
+        axes[1].axis('off')
+    
     plt.tight_layout()
     return fig
 
@@ -297,16 +343,8 @@ def plot_geospatial_scatter(df: pd.DataFrame,
 def plot_numeric_distributions(df: pd.DataFrame, 
                                columns: Optional[List[str]] = None,
                                figsize: Tuple[int, int] = (16, 12)) -> plt.Figure:
-    """Plot distributions of numeric features with histograms and KDE.
-    
-    Args:
-        df: Input DataFrame
-        columns: List of numeric columns to plot (None = all numeric)
-        figsize: Figure size (width, height)
-        
-    Returns:
-        Matplotlib figure object
-    """
+    """Plot distributions of numeric features with histograms and KDE."""
+
     # Select numeric columns
     if columns is None:
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -349,17 +387,8 @@ def plot_price_by_room_type(df: pd.DataFrame,
                             price_col: str = "price",
                             room_type_col: str = "room_type",
                             figsize: Tuple[int, int] = (14, 6)) -> plt.Figure:
-    """Plot price distribution by room type with multiple views.
-    
-    Args:
-        df: Input DataFrame
-        price_col: Name of price column
-        room_type_col: Name of room type column
-        figsize: Figure size (width, height)
-        
-    Returns:
-        Matplotlib figure object
-    """
+    """Plot price distribution by room type with multiple views."""
+
     fig, axes = plt.subplots(1, 2, figsize=figsize)
     
     # Plot 1: Violin plot (log scale)
@@ -467,7 +496,7 @@ def plot_amenity_analysis(df: pd.DataFrame,
     else:
         df_plot = df
     
-    # Plot 1: Distribution of amenity count
+    # Distribution of amenity count
     axes[0].hist(df_plot[amenity_count_col], bins=50, edgecolor='black', alpha=0.7, color='purple')
     axes[0].axvline(df_plot[amenity_count_col].mean(), color='red', linestyle='--', 
                    linewidth=2, label=f'Mean: {df_plot[amenity_count_col].mean():.1f}')

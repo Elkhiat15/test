@@ -7,60 +7,60 @@ all: data validate clean features train test
 data: scrape merge
 
 scrape:
-	python scraper/scraper.py
+	python3 scraper/scraper.py
 
 merge:
-	python scraper/merge.py
+	python3 scraper/merge.py
 
 #  Validation 
 validate:
-	python validation/validation.py --data data/merged/merged_airbnb_data.csv
+	python3 validation/validation.py --data data/merged/merged_airbnb_data.csv
 
 #  Cleaning 
 clean:
-	python cleaning/cleaning.py
+	python3 -m poetry run python3 cleaning/cleaning.py
 
 #  Feature Engineering 
 features:
-	python feature_engineering/pipeline.py
+	python3 -m poetry run python3 feature_engineering/pipeline.py
 
 #  Model Training 
 # Train all models (full hyperparameter grids)
 train:
-	python modelling/train.py
+	python3 -m poetry run python3 modelling/train.py
 
 train-smote-tomek:
-	python modelling/train_enhanced.py --balance smote_tomek
+	python3 -m poetry run python3 modelling/train_enhanced.py --balance smote_tomek
 
 train-smote:
-	python modelling/train_enhanced.py --balance mild_smote
+	python3 -m poetry run python3 modelling/train_enhanced.py --balance mild_smote
 
 train-borderline:
-	python modelling/train_enhanced.py --balance borderline
+	python3 -m poetry run python3 modelling/train_enhanced.py --balance borderline
 
 # Train all models (single parameter sets - fastest)
 train-single:
-	python modelling/train_single.py
+	python3 -m poetry run python3 modelling/train_single.py
 
 train-single-smote-tomek:
-	python modelling/train_single.py --balance smote_tomek
+	python3 -m poetry run python3 modelling/train_single.py --balance smote_tomek
 
 train-single-smote:
-	python modelling/train_single.py --balance mild_smote
+	python3 -m poetry run python3 modelling/train_single.py --balance mild_smote
 
 train-single-borderline:
-	python modelling/train_single.py --balance borderline
+	python3 -m poetry run python3 modelling/train_single.py --balance borderline
 
 compare-models:
-	python modelling/compare_models.py
+	python3 -m poetry run python3 modelling/compare_models.py
 
 mlflow-ui:
-	mlflow ui --backend-store-uri ./mlruns --host 0.0.0.0 --port 5000 --default-artifact-root ./mlruns
+	python3 -m poetry run mlflow server --backend-store-uri ./mlruns
 
 
 #  EDA Dashboard 
 eda:
-	streamlit run eda/dashboard.py
+	python3 -m poetry run python3 -m streamlit run eda/dashboard.py
 
 #  Testing 
 test:

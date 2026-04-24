@@ -6,6 +6,8 @@ kaggle_data/
 
 # MLflow
 mlruns/
+mlartifacts/
+mlflow.db
 
 # Data (large files — keep structure only)
 data/raw/*.csv

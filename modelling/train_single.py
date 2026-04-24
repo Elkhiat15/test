@@ -9,9 +9,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sklearn.preprocessing import FunctionTransformer
 from modelling.train import load_splits, prepare_data, train_and_log
-from modelling.config import SINGLE_CONFIGS, CATBOOST_AVAILABLE
+from modelling.config import SINGLE_CONFIGS, TRAKING_URI
 from modelling.class_balancing import recommended_balancing, IMBLEARN_AVAILABLE
 import mlflow
+import joblib
 import logging
 
 import warnings
@@ -21,6 +22,20 @@ warnings.filterwarnings('ignore', category=UserWarning, module='mlflow')
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+
+def save_dashboard_model(model_pipeline, model_name: str) -> None:
+    """Persist a trained pipeline for the dashboard to load locally."""
+    models_dir = Path(__file__).parent.parent / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+
+    explicit_path = models_dir / f"{model_name}_dashboard.pkl"
+    dashboard_path = models_dir / "best_model.pkl"
+
+    joblib.dump(model_pipeline, explicit_path)
+    joblib.dump(model_pipeline, dashboard_path)
+
+    logger.info(f"Saved dashboard model to {explicit_path}")
+    logger.info(f"Updated dashboard default model at {dashboard_path}")
 
 def train_single_params(
     data_dir: str = "data/processed/",
@@ -36,7 +51,7 @@ def train_single_params(
     logger.info(f"Balance method: {balance_method}")
     
     # Set MLflow tracking URI to use MLflow server
-    mlflow.set_tracking_uri('http://127.0.0.1:5000')
+    mlflow.set_tracking_uri(TRAKING_URI)
     
     # Load data
     logger.info(f"\nLoading data from {data_dir}...")
@@ -102,8 +117,12 @@ def train_single_params(
                 use_grid_search=True,  # Will be fast since only 1 param set
                 cv_folds=3
             )
+
+            if model_name == "xgboost":
+                save_dashboard_model(best_pipeline, model_name)
+
             results[model_name] = "SUCCESS"
-            logger.info(f"✓ {model_name} completed successfully")
+            logger.info(f"{model_name} completed successfully")
             
         except Exception as e:
             logger.error(f"{model_name} failed: {str(e)}")

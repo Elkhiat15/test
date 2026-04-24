@@ -1,18 +1,9 @@
-"""
-EDA Dashboard
-─────────────────────
-Streamlit app presenting EDA findings, model performance comparisons,
-and business insights in a non-technical format for stakeholders.
-
-Run:
-    streamlit run eda/dashboard.py
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import joblib
 from pathlib import Path
 import sys
 
@@ -21,14 +12,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from eda.visualize import (
     plot_target_distribution,
-    plot_price_by_city,
     plot_correlation_heatmap,
-    plot_feature_vs_target,
     plot_geospatial_scatter,
-    plot_numeric_distributions,
-    plot_price_by_room_type,
-    plot_reviews_vs_rating,
-    plot_amenity_analysis
 )
 
 from feature_engineering.selection import categorize_rating
@@ -36,7 +21,6 @@ from feature_engineering.selection import categorize_rating
 # Page configuration
 st.set_page_config(
     page_title="Airbnb Rating Classification Dashboard",
-    page_icon="🏠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -107,10 +91,89 @@ def load_featured_data(data_path: str = "data/processed/featured.csv"):
         return None
 
 
+@st.cache_resource
+def load_dashboard_model(model_path: str = "models/best_model.pkl"):
+    """Load the saved dashboard model."""
+    try:
+        return joblib.load(model_path)
+    except FileNotFoundError:
+        return None
+
+
+def build_prediction_features(
+    featured_df: pd.DataFrame,
+    city: str,
+    neighbourhood: str,
+    property_type: str,
+    room_type: str,
+    accommodates: int,
+    bedrooms: int,
+    bathrooms: int,
+    host_response_rate: int,
+    price: float,
+    amenity_count: int,
+    number_of_reviews: int,
+) -> pd.DataFrame:
+    """Build a single-row feature frame matching the trained model schema."""
+    neighbourhood_rows = featured_df[featured_df["neighbourhood"] == neighbourhood]
+    if neighbourhood_rows.empty:
+        neighbourhood_rows = featured_df[featured_df["city"] == city]
+
+    listing_density = int(len(neighbourhood_rows)) if len(neighbourhood_rows) > 0 else 1
+
+    room_type_prices = featured_df.loc[featured_df["room_type"] == room_type, "price"]
+    if room_type_prices.empty:
+        room_type_median = float(featured_df["price"].median())
+        room_type_std = float(featured_df["price"].std())
+    else:
+        room_type_median = float(room_type_prices.median())
+        room_type_std = float(room_type_prices.std())
+
+    room_type_std = room_type_std if room_type_std and not np.isnan(room_type_std) else 1.0
+    price_per_bed = float(price / bedrooms) if bedrooms > 0 else float(price)
+    price_relative_to_room_type = float((price - room_type_median) / room_type_std)
+
+    return pd.DataFrame([
+        {
+            "property_type": property_type,
+            "room_type": room_type,
+            "accommodates": accommodates,
+            "bathrooms": float(bathrooms),
+            "city": city,
+            "host_response_rate": float(host_response_rate),
+            "neighbourhood": neighbourhood,
+            "bedrooms": float(bedrooms),
+            "amenity_count": amenity_count,
+            "price_per_bed": price_per_bed,
+            "listing_density": listing_density,
+            "price_relative_to_room_type": price_relative_to_room_type,
+            "log_price": float(np.log1p(price)),
+            "log_number_of_reviews": float(np.log1p(number_of_reviews)),
+        }
+    ])
+
+
+def get_prediction_label_map(featured_df: pd.DataFrame, model) -> dict:
+    """Map model output classes back to human-readable rating labels."""
+    model_classes = list(getattr(model, "classes_", []))
+    if not model_classes:
+        return {}
+
+    if all(isinstance(label, str) for label in model_classes):
+        return {label: label for label in model_classes}
+
+    rating_labels = sorted(featured_df["rating_category"].dropna().unique().tolist())
+    return {
+        class_value: rating_labels[index]
+        for index, class_value in enumerate(model_classes)
+        if index < len(rating_labels)
+    }
+
+
 def show_eda_section(df):
     """Display EDA visualizations with interactive controls."""
     
-    st.markdown('<p class="sub-header"> Exploratory Data Analysis</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Exploratory Data Analysis</p>', unsafe_allow_html=True)
 
     # Key Business Metrics
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -130,10 +193,6 @@ def show_eda_section(df):
         avg_capacity = df['accommodates'].mean()
         st.metric("Avg Capacity", f"{avg_capacity:.1f} guests")
     
-    # Visualization selector
-    st.markdown("---")
-    st.markdown("### 🎨 Interactive Visualizations")
-    
     # =============================================================================
     # 1. TARGET DISTRIBUTION
     # =============================================================================
@@ -150,7 +209,12 @@ def show_eda_section(df):
         else:
             binned_col = None
     
-    fig = plot_target_distribution(df, target_col='review_scores_rating', binned_col=binned_col)
+    fig = plot_target_distribution(
+        df,
+        target_col='review_scores_rating',
+        binned_col=binned_col,
+        figsize=(10, 4)
+    )
     st.pyplot(fig)
     plt.close()
     
@@ -158,15 +222,21 @@ def show_eda_section(df):
     # 2. FEATURE DISTRIBUTION BY CATEGORY
     # =============================================================================
     st.markdown("---")
-    st.markdown("#### 📈 Feature Distribution by Category")
+    st.markdown("#### Feature Distribution by Category")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        y_col = st.selectbox("Y-axis (Numeric):", numeric_cols, 
-                            index=numeric_cols.index('price') if 'price' in numeric_cols else 0,
-                            key="feature_y")
+        y_axis_options = [
+            col for col in ["review_scores_rating", "price", "number_of_reviews"]
+            if col in df.columns
+        ]
+        y_col = st.selectbox(
+            "Y-axis (Numeric):",
+            y_axis_options,
+            index=y_axis_options.index("price") if "price" in y_axis_options else 0,
+            key="feature_y"
+        )
     
     with col2:
         categorical_cols = ['room_type', 'city']
@@ -177,18 +247,19 @@ def show_eda_section(df):
         plot_type = st.selectbox("Plot Type:", ["box", "violin"], key="feature_plot_type")
     
     # Create custom plot
-    fig, ax = plt.subplots(figsize=(14, 6))
+    fig, ax = plt.subplots(figsize=(9, 4.5))
     
     if plot_type == "violin":
         sns.violinplot(data=df, x=x_col, y=y_col, ax=ax, palette="Set2")
     else:
         sns.boxplot(data=df, x=x_col, y=y_col, ax=ax, palette="Set2")
     
-    ax.set_xlabel(x_col.replace('_', ' ').title(), fontsize=12)
-    ax.set_ylabel(y_col.replace('_', ' ').title(), fontsize=12)
+    ax.set_xlabel(x_col.replace('_', ' ').title(), fontsize=9)
+    ax.set_ylabel(y_col.replace('_', ' ').title(), fontsize=9)
     ax.set_title(f'{y_col.replace("_", " ").title()} by {x_col.replace("_", " ").title()}', 
-                fontsize=14, pad=20)
-    ax.tick_params(axis='x', rotation=45)
+                fontsize=10, pad=10)
+    ax.tick_params(axis='x', rotation=30, labelsize=8)
+    ax.tick_params(axis='y', labelsize=8)
     ax.grid(alpha=0.3, axis='y')
     plt.tight_layout()
     
@@ -219,8 +290,13 @@ def show_eda_section(df):
     
     features_to_plot = selected_features if selected_features else None
     
-    fig = plot_correlation_heatmap(df, features=features_to_plot, method=method, 
-                                  annot=show_annot)
+    fig = plot_correlation_heatmap(
+        df,
+        features=features_to_plot,
+        method=method,
+        annot=show_annot,
+        figsize=(9, 7)
+    )
     st.pyplot(fig)
     plt.close()
     
@@ -244,7 +320,8 @@ def show_eda_section(df):
             lat_col='latitude',
             lon_col='longitude',
             color_by=color_option,
-            city_col='city'
+            city_col='city',
+            figsize=(10, 7)
         )
         st.pyplot(fig)
         plt.close()
@@ -252,12 +329,22 @@ def show_eda_section(df):
         st.warning("Geographic coordinates not available in this dataset.")
 
 
-def show_predict_section():
+def show_predict_section(featured_df):
     """Display prediction demo interface."""
     
-    st.markdown('<p class="sub-header">🎯 Rating Prediction Demo</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Rating Prediction Demo</p>', unsafe_allow_html=True)
     
-    st.info("💡 **Interactive Model Demo** - Enter listing details to predict rating category")
+    st.info("Interactive model demo. Enter listing details to predict rating category.")
+
+    model = load_dashboard_model()
+    if model is None:
+        st.error("Saved model not found at models/best_model.pkl")
+        return
+    if featured_df is None:
+        st.error("Featured data not found at data/processed/featured.csv")
+        return
+
+    city_options = sorted(featured_df["city"].dropna().astype(str).unique().tolist())
     
     # Create input form
     with st.form("prediction_form"):
@@ -267,9 +354,17 @@ def show_predict_section():
         
         with col1:
             st.markdown("**Location**")
-            city = st.selectbox("City:", ["New York", "Los Angeles", "San Francisco", 
-                                         "Washington DC", "Chicago", "Boston"])
-            neighbourhood = st.text_input("Neighbourhood:", value="Downtown")
+            city = st.selectbox("City:", city_options)
+            neighbourhood_options = sorted(
+                featured_df.loc[
+                    featured_df["city"] == city,
+                    "neighbourhood"
+                ].dropna().astype(str).unique().tolist()
+            )
+            neighbourhood = st.selectbox(
+                "Neighbourhood:",
+                neighbourhood_options if neighbourhood_options else ["Unknown"]
+            )
             
             st.markdown("**Property**")
             property_type = st.selectbox("Property Type:", ["Apartment", "House", "Condo", 
@@ -295,60 +390,57 @@ def show_predict_section():
             number_of_reviews = st.number_input("Total Reviews:", min_value=0, max_value=500, value=10)
         
         # Submit button
-        submitted = st.form_submit_button("Predict Rating", width=True)
+        submitted = st.form_submit_button("Predict Rating", type="primary")
     
     if submitted:
-        # Create feature dictionary
-        features = {
-            'city': city,
-            'neighbourhood': neighbourhood,
-            'property_type': property_type,
-            'room_type': room_type,
-            'accommodates': accommodates,
-            'bedrooms': bedrooms,
-            'bathrooms': bathrooms,
-            'host_identity_verified': host_verified,
-            'host_response_rate': host_response_rate,
-            'price': price,
-            'amenity_count': amenity_count,
-            'number_of_reviews': number_of_reviews
-        }
-        
-        # TODO: Load actual model and make prediction
-        # For now, show placeholder
-        st.markdown("---")
-        st.markdown("### Prediction Results")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown("#### Predicted Rating")
-            # Placeholder prediction logic
-            if price > 150 and amenity_count > 25:
-                predicted_category = "Very High Rating"
-                predicted_score = 4.85
-            elif price < 75 or amenity_count < 10:
-                predicted_category = "Medium Rating"
-                predicted_score = 4.2
+        try:
+            features_df = build_prediction_features(
+                featured_df=featured_df,
+                city=city,
+                neighbourhood=neighbourhood,
+                property_type=property_type,
+                room_type=room_type,
+                accommodates=accommodates,
+                bedrooms=bedrooms,
+                bathrooms=bathrooms,
+                host_response_rate=host_response_rate,
+                price=price,
+                amenity_count=amenity_count,
+                number_of_reviews=number_of_reviews,
+            )
+
+            label_map = get_prediction_label_map(featured_df, model)
+            predicted_category_raw = model.predict(features_df)[0]
+            predicted_category = label_map.get(predicted_category_raw, str(predicted_category_raw))
+
+            if hasattr(model, "predict_proba"):
+                probabilities = model.predict_proba(features_df)[0]
+                probability_map = {
+                    label_map.get(label, str(label)): float(prob)
+                    for label, prob in zip(model.classes_, probabilities)
+                }
             else:
-                predicted_category = "High Rating"
-                predicted_score = 4.65
-            
-            st.metric("Category", predicted_category)
-            st.metric("Estimated Score", f"{predicted_score:.2f} / 5.0")
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown("#### Model Confidence")
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown("#### Class Probabilities")
-            st.write("Medium Rating: 15%")
-            st.markdown('</div>', unsafe_allow_html=True)
+                probability_map = {str(predicted_category): 1.0}
+
+            st.markdown("---")
+            st.markdown("### Prediction Results")
+
+            col1, col2 = st.columns([1, 1])
+
+            with col1:
+                st.markdown("#### Predicted Rating")
+                st.metric("Category", predicted_category)
+
+            with col2:
+                st.markdown("#### Class Probabilities")
+                for label, prob in sorted(probability_map.items(), key=lambda item: item[1], reverse=True):
+                    st.write(f"{label}: {prob * 100:.1f}%")
+
+            with st.expander("Input Features Used"):
+                st.json(features_df.iloc[0].to_dict())
+
+        except Exception as exc:
+            st.error(f"Prediction failed: {exc}")
 
 
 def main():
@@ -365,7 +457,7 @@ def main():
     
     page = st.sidebar.radio(
         "Select View:",
-        ["📊 EDA - Exploratory Analysis", "Predict - Model Demo"],
+        ["EDA - Exploratory Analysis", "Predict - Model Demo"],
         label_visibility="collapsed"
     )
     
@@ -373,24 +465,17 @@ def main():
     
     # Load cleaned data only
     df = load_data("data/processed/cleaned.csv")
+    featured_df = load_featured_data("data/processed/featured.csv")
     
     if df is None:
         st.error("Failed to load data. Please check that data files exist in data/processed/")
         st.stop()
     
-    # Sidebar info
-    st.sidebar.markdown("### Dataset Info")
-    st.sidebar.write(f"**Rows:** {len(df):,}")
-    st.sidebar.write(f"**Columns:** {len(df.columns)}")
-    st.sidebar.write(f"**Cities:** {df['city'].nunique() if 'city' in df.columns else 'N/A'}")
-    st.sidebar.write(f"**Avg Rating:** {df['review_scores_rating'].mean():.2f}")
-    st.sidebar.write(f"**Price Range:** ${df['price'].min():.0f} - ${df['price'].max():.0f}")
-    
     # Main content based on selection
     if "EDA" in page:
         show_eda_section(df)
     else:
-        show_predict_section()
+        show_predict_section(featured_df)
     
     # Footer
     st.markdown("---")
