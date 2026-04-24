@@ -53,6 +53,7 @@ def train_single_params(
     # Set MLflow tracking URI to use MLflow server
     mlflow.set_tracking_uri(TRAKING_URI)
     
+    mlflow.set_experiment("single-test")
     # Load data
     logger.info(f"\nLoading data from {data_dir}...")
     train_df, test_df = load_splits(data_dir)

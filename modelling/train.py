@@ -250,7 +250,7 @@ def train_all_models(data_dir: str = "data/processed/",
     mlflow.set_tracking_uri(TRAKING_URI)
     
     # Set MLflow experiment
-    mlflow.set_experiment("airbnb-rating-classification")
+    mlflow.set_experiment("full-training")
     logger.info("MLflow experiment: airbnb-rating-classification")
     logger.info(f"MLflow tracking URI: {TRAKING_URI}")
     

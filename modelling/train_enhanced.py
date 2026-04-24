@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sklearn.preprocessing import FunctionTransformer
 from modelling.train import load_splits, prepare_data, train_and_log
-from modelling.config import MODEL_CONFIGS, CATBOOST_AVAILABLE
+from modelling.config import MODEL_CONFIGS, CATBOOST_AVAILABLE, TRAKING_URI
 from modelling.class_balancing import recommended_balancing, IMBLEARN_AVAILABLE
 import mlflow
 import logging
@@ -29,8 +29,8 @@ def train_with_balancing(
     logger.info(f"Balance method: {balance_method}")
     
     # Set MLflow tracking URI to use MLflow server
-    mlflow.set_tracking_uri('http://127.0.0.1:5000')
-    
+    mlflow.set_tracking_uri(TRAKING_URI)
+    mlflow.set_experiment("balanced-training")
     train_df, test_df = load_splits(data_dir)
     
     X_train, X_test, y_train, y_test, preprocessor, label_encoder = prepare_data(

@@ -55,7 +55,7 @@ compare-models:
 	python3 -m poetry run python3 modelling/compare_models.py
 
 mlflow-ui:
-	python3 -m poetry run mlflow server --backend-store-uri ./mlruns
+	python3 -m poetry run mlflow ui
 
 
 #  EDA Dashboard 
