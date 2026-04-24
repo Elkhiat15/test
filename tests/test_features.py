@@ -3,9 +3,8 @@ import numpy as np
 import pytest
 
 from feature_engineering.transformations import encode_categoricals, scale_numerics, log_transform
-from feature_engineering.engineering import add_amenity_count, add_price_ratios, add_categorical_flags, add_listing_density
+from feature_engineering.engineering import *
 from feature_engineering.selection import correlation_filter, mutual_information_ranking
-
 
 class TestTransformations:
     """Tests for encoding and scaling."""
@@ -288,8 +287,7 @@ class TestFeaturePipeline:
             "review_scores_rating": [4.5, 4.0]
         })
         
-        # Feature engineering
-        from feature_engineering.engineering import engineer_features
+        
         df_engineered = engineer_features(df)
         
         # Check new features were added
@@ -311,7 +309,6 @@ class TestFeaturePipeline:
             "review_scores_rating": [4.5]
         })
         
-        from feature_engineering.engineering import engineer_features
         result = engineer_features(df)
         
         assert "review_scores_rating" in result.columns

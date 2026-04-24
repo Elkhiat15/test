@@ -1,16 +1,3 @@
-"""
-Cleaning Pipeline
-─────────────────
-Handles:
-  - Missing value imputation (strategy per column)
-  - Outlier removal / capping
-  - Data normalisation (city aliases, room_type aliases, host_identity_verified)
-  - Invalid row removal with justification logging
-
-Usage:
-    python cleaning/cleaning.py [--data path/to/merged.csv] [--output data/processed/]
-"""
-
 import argparse
 import logging
 import os
@@ -257,3 +244,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", default="data/processed/")
     args = parser.parse_args()
     clean_pipeline(args.data, args.output)
+
+# Usage:
+#  python cleaning/cleaning.py [--data path/to/merged.csv] [--output data/processed/]

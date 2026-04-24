@@ -1,7 +1,3 @@
-"""
-Shared pytest fixtures for all test modules.
-"""
-
 import pandas as pd
 import numpy as np
 import pytest

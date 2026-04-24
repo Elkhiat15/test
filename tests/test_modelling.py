@@ -12,7 +12,8 @@ from modelling.config import MODEL_CONFIGS, SINGLE_CONFIGS, CATEGORICAL_FEATURES
 from modelling.class_balancing import recommended_balancing
 
 from sklearn.compose import ColumnTransformer
-from modelling.train import prepare_data
+from sklearn.dummy import DummyClassifier
+from modelling.train import *
 
 # ── Fixtures ─────────────────────────────────────────────
 
@@ -246,7 +247,6 @@ class TestBaseline:
         assert len(set(preds)) == 1
 
     def test_baseline_config_is_dummy(self):
-        from sklearn.dummy import DummyClassifier
         assert isinstance(MODEL_CONFIGS['baseline']['model'], DummyClassifier)
 
 
@@ -371,7 +371,7 @@ class TestConfig:
 
 class TestPrepareData:
     def test_prepare_data_shapes(self, train_test_dfs):
-        from modelling.train import prepare_data
+        
         train_df, test_df = train_test_dfs
         X_train, X_test, y_train, y_test, preprocessor, le = prepare_data(train_df, test_df)
         assert X_train.shape[0] == len(train_df)
@@ -396,7 +396,6 @@ class TestPrepareData:
 
 class TestLoadSplits:
     def test_load_splits_from_csvs(self, train_test_dfs, tmp_path):
-        from modelling.train import load_splits
         train_df, test_df = train_test_dfs
         train_df.to_csv(tmp_path / "train.csv", index=False)
         test_df.to_csv(tmp_path / "test.csv", index=False)
@@ -405,7 +404,6 @@ class TestLoadSplits:
         assert loaded_test.shape == test_df.shape
 
     def test_load_splits_missing_file(self, tmp_path):
-        from modelling.train import load_splits
         with pytest.raises(FileNotFoundError):
             load_splits(str(tmp_path / "nonexistent"))
 
@@ -415,7 +413,6 @@ class TestLoadSplits:
 class TestIntegration:
     def test_prepare_then_baseline(self, train_test_dfs):
         """End-to-end: prepare data → train baseline → get predictions."""
-        from modelling.train import prepare_data
         train_df, test_df = train_test_dfs
         X_train, X_test, y_train, y_test, preprocessor, le = prepare_data(train_df, test_df)
         X_train_t = preprocessor.fit_transform(X_train)

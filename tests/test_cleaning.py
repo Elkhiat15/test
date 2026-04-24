@@ -2,8 +2,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-from cleaning.cleaning import normalize_columns, handle_missing_values, handle_outliers
-
+from cleaning.cleaning import *
 
 class TestNormalizeColumns:
     """Tests for data normalisation."""
@@ -287,7 +286,6 @@ class TestCleaningPipeline:
 
     def test_clean_pipeline_end_to_end(self, tmp_path):
         """Test that clean_pipeline runs end-to-end and saves output."""
-        from cleaning.cleaning import clean_pipeline
         
         # Create a temporary input CSV
         input_csv = tmp_path / "input.csv"

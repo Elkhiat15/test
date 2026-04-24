@@ -1,7 +1,3 @@
-"""
-Unit tests for the merge pipeline.
-"""
-
 import pandas as pd
 import numpy as np
 import pytest

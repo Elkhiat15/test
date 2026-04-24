@@ -19,6 +19,8 @@ from modelling.evaluate import (
     print_evaluation_summary
 )
 
+from modelling.train import *
+
 
 # ── Fixtures ─────────────────────────────────────────────
 
@@ -197,7 +199,6 @@ def test_baseline_model_in_config():
 
 def test_load_splits(train_test_dfs, tmp_path):
     """load_splits should reload CSVs with identical shape."""
-    from modelling.train import load_splits
     train_df, test_df = train_test_dfs
     train_df.to_csv(tmp_path / "train.csv", index=False)
     test_df.to_csv(tmp_path / "test.csv", index=False)
@@ -208,14 +209,12 @@ def test_load_splits(train_test_dfs, tmp_path):
 
 def test_load_splits_missing_dir(tmp_path):
     """load_splits raises on missing directory."""
-    from modelling.train import load_splits
     with pytest.raises((FileNotFoundError, OSError)):
         load_splits(str(tmp_path / "no_such_dir"))
 
 
 def test_prepare_data_returns_correct_types(train_test_dfs):
     """prepare_data returns arrays, ColumnTransformer, and LabelEncoder."""
-    from modelling.train import prepare_data
     train_df, test_df = train_test_dfs
     X_train, X_test, y_train, y_test, preprocessor, le = prepare_data(train_df, test_df)
     assert isinstance(preprocessor, ColumnTransformer)
@@ -226,7 +225,6 @@ def test_prepare_data_returns_correct_types(train_test_dfs):
 
 def test_prepare_data_target_excluded(train_test_dfs):
     """Target column must not appear in features."""
-    from modelling.train import prepare_data
     train_df, test_df = train_test_dfs
     X_train, *_ = prepare_data(train_df, test_df)
     assert 'rating_category' not in X_train.columns
@@ -234,7 +232,6 @@ def test_prepare_data_target_excluded(train_test_dfs):
 
 def test_prepare_data_label_encoding_roundtrip(train_test_dfs):
     """LabelEncoder must round-trip cleanly."""
-    from modelling.train import prepare_data
     train_df, test_df = train_test_dfs
     _, _, y_train, _, _, le = prepare_data(train_df, test_df)
     decoded = le.inverse_transform(y_train)
@@ -246,7 +243,6 @@ def test_prepare_data_label_encoding_roundtrip(train_test_dfs):
 @patch("modelling.train.mlflow")
 def test_train_and_log_baseline(mock_mlflow, train_test_dfs):
     """train_and_log should return a fitted Pipeline for baseline."""
-    from modelling.train import prepare_data, train_and_log
 
     mock_mlflow.start_run.return_value.__enter__ = MagicMock()
     mock_mlflow.start_run.return_value.__exit__ = MagicMock(return_value=False)
@@ -271,7 +267,6 @@ def test_train_and_log_baseline(mock_mlflow, train_test_dfs):
 @patch("modelling.train.mlflow")
 def test_train_and_log_with_grid_search(mock_mlflow, train_test_dfs):
     """train_and_log with a small param grid should fit and return pipeline."""
-    from modelling.train import prepare_data, train_and_log
 
     mock_mlflow.start_run.return_value.__enter__ = MagicMock()
     mock_mlflow.start_run.return_value.__exit__ = MagicMock(return_value=False)
@@ -297,7 +292,6 @@ def test_train_and_log_with_grid_search(mock_mlflow, train_test_dfs):
 @patch("modelling.train.mlflow")
 def test_train_and_log_logs_metrics(mock_mlflow, train_test_dfs):
     """MLflow log_metric should be called with standard and business metrics."""
-    from modelling.train import prepare_data, train_and_log
 
     mock_mlflow.start_run.return_value.__enter__ = MagicMock()
     mock_mlflow.start_run.return_value.__exit__ = MagicMock(return_value=False)

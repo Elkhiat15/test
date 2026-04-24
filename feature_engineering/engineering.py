@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+import argparse
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -153,7 +154,6 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    import argparse
 
     parser = argparse.ArgumentParser(description="Run feature engineering")
     parser.add_argument("--data", default="data/processed/cleaned.csv")

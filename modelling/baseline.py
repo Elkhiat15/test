@@ -15,7 +15,3 @@ def train_baseline(X_train, y_train, X_test, y_test):
     print(classification_report(y_test, y_pred))
     return model, y_pred
 
-
-if __name__ == "__main__":
-    # TODO: load processed data splits and run baseline
-    pass
